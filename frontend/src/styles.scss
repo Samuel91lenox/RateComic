@@ -1,0 +1,118 @@
+// Paleta principal: azul RateComic
+@use '@angular/material' as mat;
+
+// ─── Paleta personalizada ─────────────────────────────────────────────────────
+$ratecomic-blue: (
+  50:   #e6f1fd,
+  100:  #c0d9f9,
+  200:  #6FB6FF,  // glow / detalles
+  300:  #4da3f5,
+  400:  #3b90f1,
+  500:  #2F80ED,  // primary
+  600:  #2770d5,
+  700:  #1C5FB8,  // hover / active
+  800:  #154f9e,
+  900:  #0F3D7A,  // background accents
+  A100: #6FB6FF,
+  A200: #2F80ED,
+  A400: #1C5FB8,
+  A700: #0F3D7A,
+  contrast: (
+    50:  rgba(0,0,0,0.87),
+    100: rgba(0,0,0,0.87),
+    200: rgba(0,0,0,0.87),
+    300: rgba(0,0,0,0.87),
+    400: rgba(0,0,0,0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0,0,0,0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+);
+
+$ratecomic-primary: mat.m2-define-palette($ratecomic-blue, 500, 200, 700);
+$ratecomic-accent:  mat.m2-define-palette($ratecomic-blue, 200, 100, A200);
+$ratecomic-warn:    mat.m2-define-palette(mat.$m2-red-palette);
+
+$ratecomic-theme: mat.m2-define-dark-theme((
+  color: (
+    primary: $ratecomic-primary,
+    accent:  $ratecomic-accent,
+    warn:    $ratecomic-warn,
+  ),
+  typography: mat.m2-define-typography-config(
+    $font-family: 'Roboto, sans-serif',
+  ),
+  density: 0,
+));
+
+@include mat.all-component-themes($ratecomic-theme);
+
+// ─── Variables CSS globales ───────────────────────────────────────────────────
+:root {
+  --rf-bg:           #121212;
+  --rf-surface:      #1e1e1e;
+  --rf-surface-2:    #0F3D7A;   // background accents
+  --rf-primary:      #2F80ED;   // primary
+  --rf-primary-hover:#1C5FB8;   // hover / active
+  --rf-primary-dark: #0F3D7A;   // background accents
+  --rf-primary-glow: #6FB6FF;   // glow / detalles
+  --rf-accent:       #6FB6FF;   // highlights & links
+  --rf-text:         #e0e0e0;
+  --rf-text-muted:   #9e9e9e;
+  --rf-border:       rgba(111,182,255,0.18);
+  --rf-star-empty:   #555;
+  --rf-star-filled:  #6FB6FF;   // glow para estrellas
+  --rf-radius:       8px;
+}
+
+// ─── Reset y base ──────────────────────────────────────────────────────────────
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background-color: var(--rf-bg);
+  color: var(--rf-text);
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+a {
+  color: var(--rf-accent);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+// ─── Utilidades ───────────────────────────────────────────────────────────────
+.rf-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.rf-page {
+  padding: 24px 16px;
+  min-height: calc(100vh - 64px);
+}
+
+.rf-card {
+  background: var(--rf-surface);
+  border-radius: var(--rf-radius);
+  border: 1px solid var(--rf-border);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+  &:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+}
+
+.rf-spacer { flex: 1 1 auto; }
+
+.text-muted { color: var(--rf-text-muted); font-size: 0.85rem; }
+
+.mat-mdc-card {
+  background-color: var(--rf-surface) !important;
+}

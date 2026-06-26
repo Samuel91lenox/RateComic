@@ -1,0 +1,19 @@
+{
+  "name": "ratecomic",
+  "version": "1.0.0",
+  "description": "RateComic - Monorepo con scripts para arrancar frontend y backend",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "start:backend": "npm run dev --prefix backend",
+    "start:frontend": "npm start --prefix frontend",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "npm run test:unit --prefix backend && npm run test:unit --prefix frontend",
+    "test:e2e": "npm run test:e2e --prefix backend && npm run e2e --prefix frontend",
+    "db:init": "npm run db:init --prefix backend",
+    "db:backup": "npm run db:backup --prefix backend",
+    "db:restore": "npm run db:restore --prefix backend",
+    "cache:clean": "npm run cache:clean --prefix backend",
+    "cache:stats": "npm run cache:stats --prefix backend"
+  }
+}
