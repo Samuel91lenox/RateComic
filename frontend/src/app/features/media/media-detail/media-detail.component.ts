@@ -145,17 +145,34 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
                     {{ 'mediaDetail.deleteRating' | t }}
                   </button>
                 }
-                @if (auth.isLoggedIn() && canAddCurrentToLibrary()) {
-                  <button mat-stroked-button color="primary" (click)="addCurrentToLibrary()">
-                    <mat-icon>library_add</mat-icon>
-                    {{ 'library.quickAdd' | t }}
-                  </button>
-                }
               </div>
             } @else {
               <p class="text-muted">
                 <a routerLink="/auth/login">{{ 'nav.login' | t }}</a> {{ 'mediaDetail.loginToRate' | t }}
               </p>
+            }
+
+            @if (canAddCurrentToLibrary()) {
+              <div class="library-actions">
+                @if (inLibrary()) {
+                  <button mat-stroked-button color="warn" (click)="removeCurrentFromLibrary()">
+                    <mat-icon>library_add_check</mat-icon>
+                    {{ 'library.removeFromLibrary' | t }}
+                  </button>
+                } @else {
+                  <button mat-stroked-button color="primary" (click)="addCurrentToLibrary()">
+                    <mat-icon>library_add</mat-icon>
+                    {{ 'library.quickAdd' | t }}
+                  </button>
+                }
+
+                @if (!inLibrary()) {
+                  <a mat-stroked-button color="accent" class="buy-btn" href="https://www.akiracomics.com/" target="_blank" rel="noopener noreferrer">
+                    <mat-icon>shopping_cart</mat-icon>
+                    {{ 'mediaDetail.buyComic' | t }}
+                  </a>
+                }
+              </div>
             }
           </section>
 
@@ -256,6 +273,8 @@ import { TPipe } from '../../../shared/pipes/t.pipe';
     .detail-label { font-weight: 500; color: var(--rf-accent); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px; }
 
     .rating-section { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .buy-btn { text-decoration: none; }
+    .library-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 
     .new-comment { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
     .full-width { width: 100%; }
@@ -288,6 +307,7 @@ export class MediaDetailComponent implements OnInit {
   commentsLoading = signal(false);
   savingComment   = signal(false);
   myRating        = signal(0);
+  inLibrary       = signal(false);
 
   commentCtrl = new FormControl('', [Validators.required, Validators.minLength(1)]);
 
@@ -306,6 +326,13 @@ export class MediaDetailComponent implements OnInit {
         next: (ratings) => {
           const mine = ratings.find(r => r.imdb_id === imdbId);
           if (mine) this.myRating.set(mine.score);
+        },
+        error: () => {},
+      });
+      // Comprobar si ya esta en mi biblioteca
+      this.librarySvc.getMyLibrary().subscribe({
+        next: (items) => {
+          this.inLibrary.set(items.some(item => item.media.imdb_id === imdbId));
         },
         error: () => {},
       });
@@ -397,9 +424,28 @@ export class MediaDetailComponent implements OnInit {
     if (!this.canAddCurrentToLibrary()) return;
 
     this.librarySvc.importComic({ code: item.imdb_id }).subscribe({
-      next: () => this.snack.open(this.i18n.t('library.added'), this.i18n.t('mediaDetail.close'), { duration: 2000 }),
+      next: () => {
+        this.inLibrary.set(true);
+        this.snack.open(this.i18n.t('library.added'), this.i18n.t('mediaDetail.close'), { duration: 2000 });
+      },
       error: (err) => {
         const message = this.i18n.translateApiError(err, 'library.addError');
+        this.snack.open(message, this.i18n.t('mediaDetail.close'), { duration: 2500 });
+      },
+    });
+  }
+
+  removeCurrentFromLibrary() {
+    const item = this.media();
+    if (!item) return;
+
+    this.librarySvc.removeComic(item.imdb_id).subscribe({
+      next: () => {
+        this.inLibrary.set(false);
+        this.snack.open(this.i18n.t('library.removed'), this.i18n.t('mediaDetail.close'), { duration: 2000 });
+      },
+      error: (err) => {
+        const message = this.i18n.translateApiError(err, 'library.removeError');
         this.snack.open(message, this.i18n.t('mediaDetail.close'), { duration: 2500 });
       },
     });

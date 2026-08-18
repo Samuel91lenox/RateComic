@@ -8,6 +8,7 @@ import { MediaService } from '../../core/services/media.service';
 import { MediaCardComponent } from '../../shared/components/media-card/media-card.component';
 import { Media } from '../../core/models/media.model';
 import { AuthService } from '../../core/services/auth.service';
+import { LibraryService } from '../../core/services/library.service';
 import { TPipe } from '../../shared/pipes/t.pipe';
 
 @Component({
@@ -67,7 +68,7 @@ import { TPipe } from '../../shared/pipes/t.pipe';
         } @else {
           <div class="media-grid">
             @for (item of trending(); track item.imdb_id) {
-              <app-media-card [media]="item" />
+              <app-media-card [media]="item" [inLibrary]="libraryIds().has(item.imdb_id)" />
             }
           </div>
         }
@@ -126,12 +127,15 @@ import { TPipe } from '../../shared/pipes/t.pipe';
 export class HomeComponent implements OnInit {
   readonly auth     = inject(AuthService);
   private mediaSvc  = inject(MediaService);
+  private librarySvc = inject(LibraryService);
 
-  trending = signal<Media[]>([]);
-  loading  = signal(false);
+  trending   = signal<Media[]>([]);
+  loading    = signal(false);
+  libraryIds = signal<Set<string>>(new Set());
 
   ngOnInit() {
     this.loadTrending();
+    this.loadLibraryIds();
   }
 
   private loadTrending() {
@@ -139,6 +143,15 @@ export class HomeComponent implements OnInit {
     this.mediaSvc.getTrending().subscribe({
       next: (data) => { this.trending.set(data); this.loading.set(false); },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private loadLibraryIds() {
+    if (!this.auth.isLoggedIn()) return;
+
+    this.librarySvc.getMyLibrary().subscribe({
+      next: (items) => this.libraryIds.set(new Set(items.map(item => item.media.imdb_id))),
+      error: () => {},
     });
   }
 }

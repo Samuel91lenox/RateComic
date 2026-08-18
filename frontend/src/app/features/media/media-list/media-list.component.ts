@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
@@ -8,7 +8,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -26,7 +25,7 @@ import { LibraryService } from '../../../core/services/library.service';
     CommonModule, RouterLink, ReactiveFormsModule,
     MatFormFieldModule, MatInputModule, MatButtonModule,
     MatIconModule, MatSelectModule, MatProgressSpinnerModule,
-    MatPaginatorModule, MatChipsModule, MatSnackBarModule, TPipe,
+    MatChipsModule, MatSnackBarModule, TPipe,
   ],
   template: `
     <div class="rf-page rf-container">
@@ -84,17 +83,16 @@ import { LibraryService } from '../../../core/services/library.service';
                 }
                 <div class="card-info">
                   <h3 class="card-title">{{ item.Title }}</h3>
-                  <p class="text-muted">{{ item.Year }}</p>
-                  @if (isCharacterItem(item)) {
-                    <p class="text-muted type-indicator">{{ 'mediaList.character' | t }}</p>
-                  }
-                  @if (item.Genre) {
-                    <p class="text-muted genre-line">{{ item.Genre }}</p>
-                  }
+                  <p class="text-muted">{{ item.Year || '-' }}</p>
+                  <p class="text-muted genre-line" [class.type-indicator]="isCharacterItem(item)">
+                    {{ isCharacterItem(item) ? ('mediaList.character' | t) : (item.Genre || '-') }}
+                  </p>
                   @if (auth.isLoggedIn() && canAddToLibrary(item)) {
                     <button mat-stroked-button class="add-lib-btn" (click)="addToLibrary(item, $event)">
-                      <mat-icon>library_add</mat-icon>
-                      {{ 'library.quickAdd' | t }}
+                      <span class="btn-label">
+                        <mat-icon>library_add</mat-icon>
+                        <span>{{ 'library.quickAdd' | t }}</span>
+                      </span>
                     </button>
                   }
                 </div>
@@ -103,14 +101,12 @@ import { LibraryService } from '../../../core/services/library.service';
           }
         </div>
 
-        @if (totalResults() > pageSize) {
-          <mat-paginator
-            [length]="totalResults()"
-            [pageSize]="pageSize"
-            [pageIndex]="currentPage() - 1"
-            [hidePageSize]="true"
-            (page)="onPageChange($event)"
-          />
+        @if (loadingMore()) {
+          <div class="loading-more">
+            <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+          </div>
+        } @else if (!hasMore()) {
+          <div class="end-of-results text-muted">{{ 'mediaList.noMoreResults' | t }}</div>
         }
       } @else if (lastQuery()) {
         <div class="empty-state">
@@ -140,20 +136,22 @@ import { LibraryService } from '../../../core/services/library.service';
       gap: 16px;
     }
 
-    .card-link { text-decoration: none; color: inherit; }
+    .card-link { text-decoration: none; color: inherit; display: flex; height: 100%; }
     .search-card {
       cursor: pointer; overflow: hidden;
+      display: flex; flex-direction: column;
+      width: 100%; min-height: 370px;
       transition: transform 0.2s;
       &:hover { transform: translateY(-4px); }
     }
-    .card-poster { width: 100%; height: 250px; object-fit: cover; display: block; }
+    .card-poster { width: 100%; height: 250px; object-fit: cover; display: block; flex-shrink: 0; }
     .poster-ph {
-      width: 100%; height: 250px;
+      width: 100%; height: 250px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
       background: var(--rf-surface-2);
       mat-icon { font-size: 56px; color: var(--rf-text-muted); }
     }
-    .card-info { padding: 8px 12px 12px; }
+    .card-info { padding: 8px 12px 12px; display: flex; flex-direction: column; flex: 1; }
     .card-title { font-size: 0.9rem; margin: 0 0 4px; font-weight: 500;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .genre-line {
@@ -172,13 +170,28 @@ import { LibraryService } from '../../../core/services/library.service';
     }
     .add-lib-btn {
       width: 100%;
-      margin-top: 8px;
+      margin-top: auto;
+      padding-top: 14px;
       font-size: 0.75rem;
-      height: 30px;
+      min-height: 30px;
+      height: auto;
+      line-height: 1.2;
+      white-space: normal;
+      text-align: center;
     }
-    .add-lib-btn mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .add-lib-btn .btn-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      text-align: center;
+    }
+    .add-lib-btn mat-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; }
 
     .loading-center { display: flex; justify-content: center; padding: 64px; }
+    .loading-more { display: flex; justify-content: center; padding: 24px; }
+    .end-of-results { text-align: center; padding: 24px; font-size: 0.85rem; }
 
     .empty-state, .error-state {
       text-align: center; padding: 64px 16px;
@@ -212,29 +225,37 @@ export class MediaListComponent implements OnInit {
   error        = signal<string | null>(null);
   lastQuery    = signal('');
   currentPage  = signal(1);
+  loadingMore  = signal(false);
   readonly pageSize = 20;
+  readonly hasMore = computed(() => this.results().length < this.totalResults());
 
   ngOnInit() {
     this.searchCtrl.valueChanges.pipe(
       debounceTime(500),
       distinctUntilChanged(),
     ).subscribe(() => {
-      this.currentPage.set(1);
-      this.doSearch();
+      this.doSearch(true);
     });
 
     this.genreCtrl.valueChanges.subscribe(() => {
-      this.currentPage.set(1);
-      this.doSearch();
+      this.doSearch(true);
     });
   }
 
-  onPageChange(event: PageEvent) {
-    this.currentPage.set(event.pageIndex + 1);
-    this.doSearch();
+  @HostListener('window:scroll')
+  onWindowScroll() {
+    if (this.loading() || this.loadingMore() || !this.hasMore() || !this.lastQuery()) {
+      return;
+    }
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const threshold = document.documentElement.scrollHeight - 300;
+    if (scrollPosition >= threshold) {
+      this.currentPage.update(page => page + 1);
+      this.doSearch(false);
+    }
   }
 
-  private doSearch() {
+  private doSearch(reset: boolean) {
     const q = this.searchCtrl.value?.trim();
     const genre = this.genreCtrl.value?.trim();
     const hasText = !!(q && q.length >= 2);
@@ -256,25 +277,35 @@ export class MediaListComponent implements OnInit {
       this.results.set([]);
       this.totalResults.set(0);
       this.lastQuery.set('');
+      this.currentPage.set(1);
       return;
     }
 
-    this.loading.set(true);
+    if (reset) {
+      this.currentPage.set(1);
+      this.rawResults.set([]);
+      this.results.set([]);
+      this.loading.set(true);
+    } else {
+      this.loadingMore.set(true);
+    }
     this.error.set(null);
     this.lastQuery.set(effectiveQuery);
 
     this.mediaSvc.search(effectiveQuery, undefined, this.currentPage()).subscribe({
       next: (data) => {
-        this.rawResults.set(data.results);
+        this.rawResults.update(prev => reset ? data.results : [...prev, ...data.results]);
         this.buildAvailableGenres();
         // Nunca filtrar client-side por género: la query ya lo incluye
-        this.results.set(data.results);
+        this.results.set(this.rawResults());
         this.totalResults.set(data.totalResults);
         this.loading.set(false);
+        this.loadingMore.set(false);
       },
       error: (err) => {
         this.error.set(this.i18n.translateApiError(err, 'mediaList.searchError'));
         this.loading.set(false);
+        this.loadingMore.set(false);
       },
     });
   }

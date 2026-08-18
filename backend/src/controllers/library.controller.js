@@ -135,6 +135,11 @@ async function importToLibrary(req, res, next) {
       source_code: normalizedCode,
     });
 
+    // Reflejar la puntuacion personal en las valoraciones de la comunidad
+    if (resolvedPersonalScore !== null) {
+      RatingModel.upsert({ user_id, media_id: media.id, score: resolvedPersonalScore });
+    }
+
     res.status(201).json({
       ...libraryItem,
       read_status: Boolean(libraryItem.read_status),
@@ -170,6 +175,15 @@ async function updateLibraryItem(req, res, next) {
 
     if (!item) {
       return res.status(404).json({ error: 'Comic no encontrado en tu biblioteca' });
+    }
+
+    // Reflejar la puntuacion personal en las valoraciones de la comunidad
+    if (req.body.personal_score !== undefined) {
+      if (req.body.personal_score === null) {
+        RatingModel.delete({ user_id: req.user.id, media_id: media.id });
+      } else {
+        RatingModel.upsert({ user_id: req.user.id, media_id: media.id, score: req.body.personal_score });
+      }
     }
 
     res.json({ ...item, read_status: Boolean(item.read_status) });

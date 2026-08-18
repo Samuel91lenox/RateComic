@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -24,6 +25,7 @@ type MaybeBarcodeDetector = {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,
@@ -82,7 +84,7 @@ type MaybeBarcodeDetector = {
         <div class="library-grid">
           @for (item of items(); track item.library_id) {
             <mat-card class="rf-card library-item">
-              <div class="item-head">
+              <a class="item-head" [routerLink]="['/media', item.media.imdb_id]">
                 @if (item.media.poster_url) {
                   <img class="item-poster" [src]="item.media.poster_url" [alt]="item.media.title">
                 } @else {
@@ -95,7 +97,7 @@ type MaybeBarcodeDetector = {
                   <p class="text-muted">{{ item.media.year || '-' }}</p>
                   <p class="text-muted">★ {{ item.media.avg_score ?? '-' }}/10 · {{ item.media.total_votes ?? 0 }} votos</p>
                 </div>
-              </div>
+              </a>
 
               <div class="item-actions">
                 <mat-slide-toggle
@@ -113,9 +115,11 @@ type MaybeBarcodeDetector = {
                   />
                 </div>
 
-                <button mat-button color="warn" (click)="remove(item)">
-                  <mat-icon>delete</mat-icon>
-                  {{ 'library.remove' | t }}
+                <button mat-button color="warn" class="remove-btn" (click)="remove(item)">
+                  <span class="btn-label">
+                    <mat-icon>delete</mat-icon>
+                    <span>{{ 'library.remove' | t }}</span>
+                  </span>
                 </button>
               </div>
             </mat-card>
@@ -143,9 +147,13 @@ type MaybeBarcodeDetector = {
     .empty-card { padding: 24px; text-align: center; }
     .empty-card mat-icon { font-size: 46px; width: 46px; height: 46px; color: var(--rf-text-muted); }
     .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-    .library-item { padding: 14px; }
-    .item-head { display: flex; gap: 12px; }
-    .item-poster { width: 76px; height: 108px; object-fit: cover; border-radius: 6px; }
+    .library-item { padding: 14px; display: flex; flex-direction: column; min-height: 220px; }
+    .item-head {
+      display: flex; gap: 12px;
+      text-decoration: none; color: inherit;
+      &:hover .item-meta h3 { text-decoration: underline; }
+    }
+    .item-poster { width: 76px; height: 108px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
     .empty-poster {
       display: flex;
       align-items: center;
@@ -155,7 +163,11 @@ type MaybeBarcodeDetector = {
     .item-meta { flex: 1; }
     .item-meta h3 { margin: 0 0 6px; font-size: 1rem; }
     .item-meta p { margin: 0 0 4px; }
-    .item-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .item-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 16px; }
+    .item-actions button { text-align: center; }
+    .item-actions .btn-label {
+      display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    }
     .my-rating { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   `],
 })
